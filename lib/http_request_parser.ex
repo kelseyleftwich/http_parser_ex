@@ -17,11 +17,40 @@ defmodule HttpRequestParser do
   """
   @spec parse(String.t()) :: Request.t()
   def parse(request_string) do
-    %Request{}
+    [start_line | rest] =
+      request_string
+      |> String.split("\n")
+
+    [method, path, _] = start_line |> String.split(" ")
+
+    case rest |> Enum.chunk_by(fn x -> x != "" end) do
+      [headers, _, [body]] ->
+        %Request{
+          method: method,
+          path: path,
+          body: body,
+          headers: headers |> parse_headers()
+        }
+
+      [headers | _] ->
+        %Request{
+          method: method,
+          path: path,
+          headers: headers |> parse_headers(),
+          body: ""
+        }
+    end
+  end
+
+  def parse_headers(["", ""]) do
+    %{}
   end
 
   @spec parse_headers([String.t()]) :: %{optional(String.t()) => String.t()}
   def parse_headers(headers) do
-    %{}
+    headers
+    |> Stream.map(fn x -> x |> String.split(": ") end)
+    |> Stream.map(fn [a, b] -> {a, b} end)
+    |> Map.new()
   end
 end
